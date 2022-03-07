@@ -226,13 +226,15 @@
     "webpack-merge": "^5.8.0"
   },
   "dependencies": {
+    "antd": "^4.18.9",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.4",
     "electron-updater": "^4.6.5",
     "history": "^5.2.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-router-dom": "^6.2.1"
+    "react-router-dom": "^6.2.1",
+    "svgaplayerweb": "^2.3.2"
   },
   "devEngines": {
     "node": ">=14.x",
