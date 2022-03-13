@@ -216,7 +216,7 @@ export default class MenuBuilder {
                     //   console.log(arg);
                     //   console.log(result.filePaths[0]);
                     // });
-                    this.mainWindow.webContents.send('ping', file);
+                    this.mainWindow.webContents.send('file-loaded', file);
                   }
                   return true;
                 })
