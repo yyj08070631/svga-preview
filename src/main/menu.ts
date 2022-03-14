@@ -4,9 +4,8 @@ import {
   shell,
   BrowserWindow,
   MenuItemConstructorOptions,
-  dialog,
 } from 'electron';
-import fs from 'fs';
+import { openFile } from './menuUtils';
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
   selector?: string;
@@ -58,6 +57,12 @@ export default class MenuBuilder {
     const subMenuAbout: DarwinMenuItemConstructorOptions = {
       label: 'Electron',
       submenu: [
+        {
+          label: 'Open',
+          click: () => {
+            openFile(this.mainWindow);
+          },
+        },
         {
           label: 'About ElectronReact',
           selector: 'orderFrontStandardAboutPanel:',
@@ -203,25 +208,7 @@ export default class MenuBuilder {
             label: '&Open',
             accelerator: 'Ctrl+O',
             click: () => {
-              dialog
-                .showOpenDialog({
-                  title: '选择发送的文件',
-                  properties: ['openFile'],
-                })
-                .then(async (result) => {
-                  if (result.filePaths && result.filePaths[0]) {
-                    const file = fs.readFileSync(result.filePaths[0], 'base64');
-                    // ipcMain.on('load-file', async (event, arg) => {
-                    //   event.reply('load-file', result.filePaths[0]);
-                    //   console.log(arg);
-                    //   console.log(result.filePaths[0]);
-                    // });
-                    this.mainWindow.webContents.send('file-loaded', file);
-                  }
-                  return true;
-                })
-                // eslint-disable-next-line no-console
-                .catch(console.log);
+              openFile(this.mainWindow);
             },
           },
           {
