@@ -15,27 +15,33 @@ const Previewer: FC = () => {
   // ------------- data -------------
   const [scale, setScale] = useState(1);
   const [videoItem, setVideoItem] = useState();
-  const { sprites, images } = videoItem || {};
+  const { sprites, images, frames } = videoItem || {};
+  const [currFrame, setCurrFrame] = useState(0);
   // ------------- methods -------------
   // 播放动画
   const play = () => {
+    // console.log(currFrame, frames - 1);
+    player.stepToFrame(currFrame);
+    if (currFrame === frames - 1) {
+      setCurrFrame(0);
+    } else {
+      setCurrFrame(currFrame + 1);
+    };
+    window.requestAnimationFrame(play);
   };
   // 加载并播放动画
   const loadAndPlay = (base64: string) => {
-    parser.load(
-      base64,
-      (v) => {
-        // console.log(v);
-        setVideoItem(v);
-        // reset size
-        const canvas = document.querySelector('.canvas');
-        canvas.width = v.videoSize.width;
-        canvas.height = v.videoSize.height;
-        // play
-        player.setVideoItem(v);
-        player.startAnimation();
-      }
-    );
+    parser.load(base64, (v) => {
+      // console.log(v);
+      setVideoItem(v);
+      // reset size
+      const canvas = document.querySelector('.canvas');
+      canvas.width = v.videoSize.width;
+      canvas.height = v.videoSize.height;
+      // play
+      player.setVideoItem(v);
+      play();
+    });
   };
   // 打开文件处理函数
   const beforeUploadHandler = async (file: File) => {
@@ -102,7 +108,7 @@ const Previewer: FC = () => {
             bordered={false}
             key={v.imageKey}
             size="small"
-            className={`frame_wrapper ${'frame_wrapper--active'}`}>
+            className={`frame_wrapper ${currFrame === k ? 'frame_wrapper--active' : null}`}>
             <div className="frame_info">{k}</div>
           </Card>
         ))}
