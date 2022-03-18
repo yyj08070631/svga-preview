@@ -3,14 +3,14 @@
 import { FC } from 'react';
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 // 自定义
-import Previewer from './components/Previewer';
+import Home from './views/Home';
 import './App.css';
 
 const App: FC = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Previewer />} />
+        <Route path="/" element={<Home />} />
       </Routes>
     </Router>
   );
