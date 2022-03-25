@@ -9,13 +9,15 @@
     padding: 12px;
     background-color: #fff;
   }
+
   .preview {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: auto;
+    overflow: hidden;
   }
+
   .frames {
     width: 100%;
     padding: 12px;
@@ -44,5 +46,12 @@
   .frame_info {
     font-size: 12px;
     text-align: center;
+  }
+
+  .toolbar-bottom {
+    display: flex;
+    justify-content: center;
+    padding: 12px;
+    background-color: #f5f5f5;
   }
 }

@@ -1,8 +1,8 @@
 /* eslint-disable prettier/prettier */
 // 库
-import { useEffect, useState, useMemo, FC } from 'react';
-import { Card, Space, Upload } from 'antd';
-import { FolderOpenOutlined } from '@ant-design/icons';
+import { useEffect, useState, useRef, FC, WheelEvent, useMemo } from 'react';
+import { Card, Space, Upload, Button, Tooltip } from 'antd';
+import { FolderOpenOutlined, StepForwardOutlined, StepBackwardOutlined, PauseOutlined, CaretRightOutlined } from '@ant-design/icons';
 import SVGA from 'svgaplayerweb';
 // 私有
 // 其它
@@ -14,79 +14,115 @@ let parser: SVGA.Parser;
 const Previewer: FC = () => {
   // ------------- data -------------
   const [scale, setScale] = useState(1);
-  const [videoItem, setVideoItem] = useState();
-  const { sprites, images, frames } = videoItem || {};
+  const [videoItem, setVideoItem] = useState({} as SVGA.VideoEntity);
+  const { sprites, images } = videoItem;
   const [currFrame, setCurrFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const canvasEl = useRef({} as HTMLCanvasElement);
   // ------------- methods -------------
-  // 播放动画
-  const play = () => {
-    // console.log(currFrame, frames - 1);
-    player.stepToFrame(currFrame);
-    if (currFrame === frames - 1) {
-      setCurrFrame(0);
-    } else {
-      setCurrFrame(currFrame + 1);
-    };
-    window.requestAnimationFrame(play);
-  };
   // 加载并播放动画
   const loadAndPlay = (base64: string) => {
     parser.load(base64, (v) => {
       // console.log(v);
       setVideoItem(v);
       // reset size
-      const canvas = document.querySelector('.canvas');
-      canvas.width = v.videoSize.width;
-      canvas.height = v.videoSize.height;
+      canvasEl.current.width = v.videoSize.width;
+      canvasEl.current.height = v.videoSize.height;
       // play
       player.setVideoItem(v);
-      play();
+      player.startAnimation();
+      setPlaying(true);
     });
   };
-  // 打开文件处理函数
-  const beforeUploadHandler = async (file: File) => {
+  // 【事件处理】打开文件并播放
+  const beforeUploadHandler = (file: File) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (e) => {
       loadAndPlay(e.target?.result);
     };
   };
-  // 缩放
-  const zoomHandlerMemo = useMemo(
-    () => (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        const temp = scale + e.deltaY * -0.001;
-        setScale(Math.min(Math.max(0.125, temp), 4));
-      }
-    },
-    [scale]
-  );
+  // 【事件处理】缩放
+  const zoomHandlerMemo = (e: WheelEvent) => {
+    if (e.ctrlKey) {
+      const temp = scale + e.deltaY * -0.001;
+      setScale(Math.min(Math.max(0.125, temp), 4));
+    }
+  };
+  // 【事件处理】横向滚动
+  const verticalScrollHandler = (e: WheelEvent) => {
+    const framesEl = document.querySelector('.frames');
+    framesEl.scrollLeft += e.deltaY;
+  };
+  // 【事件处理】横向滚动
+  enum ToNeighboringFrameType { next, prev };
+  const toNeighboringFrame = useMemo(() => (type: ToNeighboringFrameType) => {
+    const temp = type ? Math.max(currFrame - 1, 0) : Math.min(currFrame + 1, sprites.length - 1)
+    setCurrFrame(temp);
+    player.stepToFrame(temp);
+    player.pauseAnimation();
+    setPlaying(false);
+    // 滚动到当前帧数
+    const framesEl = document.querySelector('.frames');
+    const currFrameEl = document.querySelector(`.frames .ant-space-item:nth-child(${currFrame + 1})`);
+    framesEl.scrollLeft = Math.max(currFrameEl?.offsetLeft - document.documentElement.clientWidth / 2, 0);
+  }, [currFrame, sprites]);
+  // 【事件处理】全局 keyup
+  const globalKeyUpHandler = useMemo(() => (e: KeyboardEvent) => {
+    // console.log(e.code);
+    switch (e.code) {
+      case 'Space':
+        if (playing) {
+          player.pauseAnimation();
+          setPlaying(false);
+        } else {
+          player.stepToFrame(currFrame, true);
+          setPlaying(true);
+        }
+        break;
+      default: ;
+    };
+  }, [playing, currFrame]);
+  // 【事件处理】全局 keydown
+  const globalKeyDownHandler = useMemo(() => (e: KeyboardEvent) => {
+    // console.log(e.code);
+    switch (e.code) {
+      case 'ArrowLeft':
+        toNeighboringFrame(ToNeighboringFrameType.prev);
+        break;
+      case 'ArrowRight':
+        toNeighboringFrame(ToNeighboringFrameType.next);
+        break;
+      default: ;
+    };
+  }, [toNeighboringFrame, ToNeighboringFrameType.prev, ToNeighboringFrameType.next]);
   // ------------- cycle life -------------
   useEffect(() => {
-    window.addEventListener('wheel', zoomHandlerMemo);
+    document.addEventListener('keyup', globalKeyUpHandler);
+    document.addEventListener('keydown', globalKeyDownHandler);
     return () => {
-      window.removeEventListener('wheel', zoomHandlerMemo);
-    };
-  }, [zoomHandlerMemo]);
+      document.removeEventListener('keyup', globalKeyUpHandler);
+      document.removeEventListener('keydown', globalKeyDownHandler);
+    }
+  }, [globalKeyUpHandler, globalKeyDownHandler]);
   // 初始化播放器
   useEffect(() => {
     player = new SVGA.Player('.canvas');
-    parser = new SVGA.Parser(); // Must Provide same selector eg:#canvas IF support IE6+
+    parser = new SVGA.Parser();
+
+    player.onFrame((frame) => {
+      // 记录当前帧数
+      setCurrFrame(frame);
+      // 滚动到当前播放的帧数
+      const framesEl = document.querySelector('.frames');
+      const currFrameEl = document.querySelector(`.frames .ant-space-item:nth-child(${frame + 1})`);
+      framesEl.scrollLeft = Math.max(currFrameEl?.offsetLeft - document.documentElement.clientWidth / 2, 0);
+    });
   }, []);
-  // 横向滚动
-  useEffect(() => {
-    const framesEl = document.querySelector('.frames');
-    const verticalScrollHandler = (e: WheelEvent) => {
-      framesEl.scrollLeft += e.deltaY;
-    };
-    framesEl?.addEventListener('wheel', verticalScrollHandler);
-    return () => {
-      framesEl?.removeEventListener('wheel', verticalScrollHandler);
-    };
-  }, [videoItem]);
   // ------------- render -------------
   return (
     <div className="home">
+      {/* toolbar */}
       <Space wrap className="toolbar">
         <Upload showUploadList={false}
           name="files"
@@ -99,20 +135,46 @@ const Previewer: FC = () => {
             style={{ width: '80px' }}>打开</Card>
         </Upload>
       </Space>
-      <div className="preview">
-        <canvas style={{ transform: `scale(${scale})` }} className="canvas" />
+      {/* preview */}
+      <div className="preview"
+        onWheel={zoomHandlerMemo}>
+        <canvas ref={canvasEl} style={{ transform: `scale(${scale})` }} className="canvas" />
       </div>
-      <Space className="frames">
+      {/* frames */}
+      <Space className="frames"
+        onWheel={verticalScrollHandler}>
         {sprites && sprites.map((v: any, k: number) => (
           <Card cover={<img src={`data:image/;base64,${images[v.imageKey]}`} alt="" className="frame_img" />}
             bordered={false}
             key={v.imageKey}
             size="small"
-            className={`frame_wrapper ${currFrame === k ? 'frame_wrapper--active' : null}`}>
+            className={`frame_wrapper ${currFrame === k ? 'frame_wrapper--active' : null}`}
+            onClick={() => {
+              setCurrFrame(k);
+              player.stepToFrame(k);
+              player.pauseAnimation();
+              setPlaying(false);
+            }}>
             <div className="frame_info">{k}</div>
           </Card>
         ))}
       </Space>
+      {/* toolbar-bottom */}
+      {sprites && (
+        <div className="toolbar-bottom">
+        <Space>
+          <Tooltip title="上一帧（方向键左）" mouseEnterDelay={.3}>
+            <Button type="dashed" shape="circle" icon={<StepBackwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.prev); }} />
+          </Tooltip>
+          <Tooltip title="播放/暂停（空格）" mouseEnterDelay={.3}>
+            <Button type="dashed" shape="circle" icon={playing ? <PauseOutlined /> : <CaretRightOutlined />} />
+          </Tooltip>
+          <Tooltip title="下一帧（方向键右）" mouseEnterDelay={.3}>
+            <Button type="dashed" shape="circle" icon={<StepForwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.next); }} />
+          </Tooltip>
+        </Space>
+      </div>
+      )}
     </div>
   );
 };
