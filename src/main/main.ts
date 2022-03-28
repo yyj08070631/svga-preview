@@ -9,6 +9,7 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
+import fs from 'fs';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
@@ -24,24 +25,35 @@ export default class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let filePaths: string[];
 
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log(msgTemplate(arg));
   event.reply('ipc-example', msgTemplate('pong'));
 });
+ipcMain.on('file-opened-monitored', (event, arg) => {
+  // 加载为二进制格式，用 ipc 通信发给 renderer
+  try {
+    const file = fs.readFileSync(filePaths[filePaths.length - 1]);
+    mainWindow?.webContents.send('file-opened', file);
+  } catch (e) {
+    mainWindow?.webContents.send('file-opened', e);
+  }
+});
 
-if (process.env.NODE_ENV === 'production') {
-  const sourceMapSupport = require('source-map-support');
-  sourceMapSupport.install();
-}
+// if (process.env.NODE_ENV === 'production') {
+const sourceMapSupport = require('source-map-support');
+
+sourceMapSupport.install();
+// }
 
 const isDevelopment =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
 
-if (isDevelopment) {
-  require('electron-debug')();
-}
+// if (isDevelopment) {
+require('electron-debug')();
+// }
 
 const installExtensions = async () => {
   const installer = require('electron-devtools-installer');
@@ -57,9 +69,9 @@ const installExtensions = async () => {
 };
 
 const createWindow = async () => {
-  if (isDevelopment) {
-    await installExtensions();
-  }
+  // if (isDevelopment) {
+  await installExtensions();
+  // }
 
   const RESOURCES_PATH = app.isPackaged
     ? path.join(process.resourcesPath, 'assets')
@@ -86,6 +98,12 @@ const createWindow = async () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');
     }
+
+    // 【windows】获取打开文件的路径链
+    if (process.platform === 'win32') {
+      filePaths = process.argv;
+    }
+
     if (process.env.START_MINIMIZED) {
       mainWindow.minimize();
     } else {
@@ -114,7 +132,6 @@ const createWindow = async () => {
 /**
  * Add event listeners...
  */
-
 app.on('window-all-closed', () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed

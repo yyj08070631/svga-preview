@@ -8,6 +8,8 @@ import SVGA from 'svgaplayerweb';
 // 其它
 import './Home.scss';
 
+const { ipcRenderer }: { ipcRenderer: Electron.IpcRenderer } = window.electron
+
 let player: SVGA.Player;
 let parser: SVGA.Parser;
 
@@ -34,14 +36,24 @@ const Previewer: FC = () => {
       setPlaying(true);
     });
   };
+  // 【事件处理】播放/暂停
+  const playOrPause = useMemo(() => () => {
+    if (playing) {
+      player.pauseAnimation();
+      setPlaying(false);
+    } else {
+      player.stepToFrame(currFrame, true);
+      setPlaying(true);
+    }
+  }, [playing, currFrame]);
   // 【事件处理】打开文件并播放
-  const beforeUploadHandler = (file: File) => {
+  const beforeUploadHandler = useMemo(() => (file: File) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
     reader.onload = (e) => {
       loadAndPlay(e.target?.result);
     };
-  };
+    reader.readAsDataURL(file);
+  }, []);
   // 【事件处理】缩放
   const zoomHandlerMemo = (e: WheelEvent) => {
     if (e.ctrlKey) {
@@ -71,18 +83,10 @@ const Previewer: FC = () => {
   const globalKeyUpHandler = useMemo(() => (e: KeyboardEvent) => {
     // console.log(e.code);
     switch (e.code) {
-      case 'Space':
-        if (playing) {
-          player.pauseAnimation();
-          setPlaying(false);
-        } else {
-          player.stepToFrame(currFrame, true);
-          setPlaying(true);
-        }
-        break;
+      case 'Space': playOrPause(); break;
       default: ;
     };
-  }, [playing, currFrame]);
+  }, [playOrPause]);
   // 【事件处理】全局 keydown
   const globalKeyDownHandler = useMemo(() => (e: KeyboardEvent) => {
     // console.log(e.code);
@@ -96,15 +100,35 @@ const Previewer: FC = () => {
       default: ;
     };
   }, [toNeighboringFrame, ToNeighboringFrameType.prev, ToNeighboringFrameType.next]);
+  // 【事件处理】ipc 打开文件
+  const ipcFileOpenedHandler = useMemo(() => (bit: Uint8Array) => {
+    if (bit instanceof Uint8Array) {
+      const file = new File([bit], '');
+      beforeUploadHandler(file);
+    } else {
+      console.log(bit);
+    }
+  }, [beforeUploadHandler]);
   // ------------- cycle life -------------
   useEffect(() => {
     document.addEventListener('keyup', globalKeyUpHandler);
-    document.addEventListener('keydown', globalKeyDownHandler);
     return () => {
       document.removeEventListener('keyup', globalKeyUpHandler);
+    }
+  }, [globalKeyUpHandler]);
+  useEffect(() => {
+    document.addEventListener('keydown', globalKeyDownHandler);
+    return () => {
       document.removeEventListener('keydown', globalKeyDownHandler);
     }
-  }, [globalKeyUpHandler, globalKeyDownHandler]);
+  }, [globalKeyDownHandler]);
+  useEffect(() => {
+    ipcRenderer.on('file-opened', ipcFileOpenedHandler);
+    ipcRenderer.send('file-opened-monitored');
+    return () => {
+      ipcRenderer.removeListener('file-opened', ipcFileOpenedHandler);
+    }
+  }, [ipcFileOpenedHandler]);
   // 初始化播放器
   useEffect(() => {
     player = new SVGA.Player('.canvas');
@@ -162,18 +186,18 @@ const Previewer: FC = () => {
       {/* toolbar-bottom */}
       {sprites && (
         <div className="toolbar-bottom">
-        <Space>
-          <Tooltip title="上一帧（方向键左）" mouseEnterDelay={.3}>
-            <Button type="dashed" shape="circle" icon={<StepBackwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.prev); }} />
-          </Tooltip>
-          <Tooltip title="播放/暂停（空格）" mouseEnterDelay={.3}>
-            <Button type="dashed" shape="circle" icon={playing ? <PauseOutlined /> : <CaretRightOutlined />} />
-          </Tooltip>
-          <Tooltip title="下一帧（方向键右）" mouseEnterDelay={.3}>
-            <Button type="dashed" shape="circle" icon={<StepForwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.next); }} />
-          </Tooltip>
-        </Space>
-      </div>
+          <Space>
+            <Tooltip title="上一帧（方向键左）" mouseEnterDelay={.3}>
+              <Button type="dashed" shape="circle" icon={<StepBackwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.prev); }} />
+            </Tooltip>
+            <Tooltip title="播放/暂停（空格）" mouseEnterDelay={.3}>
+              <Button type="dashed" shape="circle" icon={playing ? <PauseOutlined /> : <CaretRightOutlined />} onClick={playOrPause} />
+            </Tooltip>
+            <Tooltip title="下一帧（方向键右）" mouseEnterDelay={.3}>
+              <Button type="dashed" shape="circle" icon={<StepForwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.next); }} />
+            </Tooltip>
+          </Space>
+        </div>
       )}
     </div>
   );

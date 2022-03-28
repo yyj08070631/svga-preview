@@ -1,6 +1,6 @@
 {
-  "name": "electron-react-boilerplate",
-  "description": "A foundation for scalable desktop apps",
+  "name": "svga-previewer",
+  "description": "Previewer for SVGA File.",
   "scripts": {
     "build": "concurrently \"npm run build:main\" \"npm run build:renderer\"",
     "build:main": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.prod.ts",
@@ -30,14 +30,21 @@
     ]
   },
   "build": {
-    "productName": "ElectronReact",
-    "appId": "org.erb.ElectronReact",
+    "productName": "SVGAPreviewer",
+    "appId": "org.erb.SVGAPreviewer",
     "asar": true,
     "asarUnpack": "**\\*.{node,dll}",
     "files": [
       "dist",
       "node_modules",
       "package.json"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "svga",
+        "name": "SVGA File",
+        "role": "Viewer"
+      }
     ],
     "afterSign": ".erb/scripts/notarize.js",
     "mac": {
