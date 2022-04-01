@@ -30,8 +30,8 @@
     ]
   },
   "build": {
-    "productName": "SVGAPreviewer",
-    "appId": "org.erb.SVGAPreviewer",
+    "productName": "SVGA Player",
+    "appId": "org.erb.svgaplayer",
     "asar": true,
     "asarUnpack": "**\\*.{node,dll}",
     "files": [

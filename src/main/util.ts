@@ -19,19 +19,20 @@ if (process.env.NODE_ENV === 'development') {
   };
 }
 
-export const openFile = (window: BrowserWindow) => {
-  dialog
-    .showOpenDialog({
-      title: '选择发送的文件',
-      properties: ['openFile'],
-    })
-    .then(async (result) => {
-      if (result.filePaths && result.filePaths[0]) {
-        // const file = fs.readFileSync(result.filePaths[0], 'base64');
-        // window.webContents.send('file-opened', file);
-      }
-      return true;
-    })
-    // eslint-disable-next-line no-console
-    .catch(console.log);
+// 加载为二进制格式，用 ipc 通信发给 renderer
+export const openAndSendFile = (
+  commandLine: string[],
+  mainWindow: BrowserWindow | null
+) => {
+  try {
+    const target = commandLine[commandLine.length - 1] || '';
+    if (target.endsWith('.svga')) {
+      const file = fs.readFileSync(target);
+      mainWindow?.webContents.send('file-opened', file);
+    } else {
+      mainWindow?.webContents.send('file-opened');
+    }
+  } catch (e) {
+    mainWindow?.webContents.send('file-opened', e);
+  }
 };

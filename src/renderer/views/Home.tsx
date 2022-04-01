@@ -1,8 +1,11 @@
+/* eslint-disable jsx-a11y/interactive-supports-focus */
+/* eslint-disable jsx-a11y/click-events-have-key-events */
+/* eslint-disable jsx-a11y/control-has-associated-label */
 /* eslint-disable prettier/prettier */
 // 库
 import { useEffect, useState, useRef, FC, WheelEvent, useMemo } from 'react';
-import { Card, Space, Upload, Button, Tooltip } from 'antd';
-import { FolderOpenOutlined, StepForwardOutlined, StepBackwardOutlined, PauseOutlined, CaretRightOutlined } from '@ant-design/icons';
+import { Card, Space, Upload, Button, Tooltip, Slider } from 'antd';
+import { FolderOpenOutlined, StepForwardOutlined, StepBackwardOutlined, PauseOutlined, CaretRightOutlined, CompressOutlined } from '@ant-design/icons';
 import SVGA from 'svgaplayerweb';
 // 私有
 // 其它
@@ -10,12 +13,15 @@ import './Home.scss';
 
 const { ipcRenderer }: { ipcRenderer: Electron.IpcRenderer } = window.electron
 
+const COLOR_PICKER_LIST: [string, string?][] = [['#000'], ['#fff', '#bfbfbf'], ['#3498DB'], ['#30CC71'], ['#F1C40D'], ['#C0392B']]
+
 let player: SVGA.Player;
 let parser: SVGA.Parser;
 
 const Previewer: FC = () => {
   // ------------- data -------------
   const [scale, setScale] = useState(1);
+  const [bgColor, setBgColor] = useState('transparent');
   const [videoItem, setVideoItem] = useState({} as SVGA.VideoEntity);
   const { sprites, images } = videoItem;
   const [currFrame, setCurrFrame] = useState(0);
@@ -31,11 +37,18 @@ const Previewer: FC = () => {
       canvasEl.current.width = v.videoSize.width;
       canvasEl.current.height = v.videoSize.height;
       // play
+      player.clearDynamicObjects();
       player.setVideoItem(v);
       player.startAnimation();
       setPlaying(true);
+      setBgColor('#fff');
     });
   };
+  // 生成颜色选择器样式
+  const genColorPickerStyle = (_bgColor: string, _borderColor?: string) => ({
+    backgroundColor: _bgColor,
+    border: `1px solid ${_borderColor || _bgColor}`,
+  });
   // 【事件处理】播放/暂停
   const playOrPause = useMemo(() => () => {
     if (playing) {
@@ -146,23 +159,22 @@ const Previewer: FC = () => {
   // ------------- render -------------
   return (
     <div className="home">
-      {/* toolbar */}
-      <Space wrap className="toolbar">
-        <Upload showUploadList={false}
-          name="files"
-          beforeUpload={beforeUploadHandler}>
-          <Card cover={<FolderOpenOutlined style={{ fontSize: '24px', color: '#08c', padding: '12px 12px 0' }} />}
-            bordered={false}
-            hoverable
-            size="small"
-            bodyStyle={{ textAlign: 'center' }}
-            style={{ width: '80px' }}>打开</Card>
-        </Upload>
-      </Space>
+      {/* start page */}
+      {!sprites && (
+        <Space className="start">
+          <Upload showUploadList={false}
+            name="files"
+            beforeUpload={beforeUploadHandler}>
+            <Button type="primary" icon={<FolderOpenOutlined />}>打开</Button>
+          </Upload>
+        </Space>
+      )}
       {/* preview */}
       <div className="preview"
         onWheel={zoomHandlerMemo}>
-        <canvas ref={canvasEl} style={{ transform: `scale(${scale})` }} className="canvas" />
+        <canvas ref={canvasEl}
+          style={{ backgroundColor: bgColor, transform: `scale(${scale})` }}
+          className="canvas" />
       </div>
       {/* frames */}
       <Space className="frames"
@@ -185,8 +197,19 @@ const Previewer: FC = () => {
       </Space>
       {/* toolbar-bottom */}
       {sprites && (
-        <div className="toolbar-bottom">
-          <Space>
+        <div className="toolbar_bottom">
+          <Space className="toolbar_bottom_lf">
+            <div className="toolbar_bottom_colors">
+              {COLOR_PICKER_LIST.map((v) => (
+                <div style={genColorPickerStyle(...v)}
+                  role="button"
+                  className="toolbar_bottom_color"
+                  key={v[0]}
+                  onClick={() => { setBgColor(v[0]) }} />
+              ))}
+            </div>
+          </Space>
+          <Space className="toolbar_bottom_center">
             <Tooltip title="上一帧（方向键左）" mouseEnterDelay={.3}>
               <Button type="dashed" shape="circle" icon={<StepBackwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.prev); }} />
             </Tooltip>
@@ -196,6 +219,30 @@ const Previewer: FC = () => {
             <Tooltip title="下一帧（方向键右）" mouseEnterDelay={.3}>
               <Button type="dashed" shape="circle" icon={<StepForwardOutlined />} onClick={() => { toNeighboringFrame(ToNeighboringFrameType.next); }} />
             </Tooltip>
+          </Space>
+          <Space className="toolbar_bottom_rt">
+            <Tooltip title="适应窗口大小" mouseEnterDelay={.3}>
+              <CompressOutlined className="toolbar_bottom_rt_suit" />
+            </Tooltip>
+            <Tooltip title={(
+              <div>
+                <Slider value={(scale - .125) / 3.875 * 100}
+                  max={100}
+                  min={0}
+                  tipFormatter={(v) => `${Math.round((.125 + 3.875 * (v ?? 0) / 100) * 100)}%`}
+                  style={{ width: '90%' }}
+                  onChange={(v) => { setScale(.125 + 3.875 * v / 100); }} />
+                <div>拖动调整动画元素大小</div>
+                <div>快捷键：Ctrl + 滚轮滚动</div>
+              </div>
+            )} mouseEnterDelay={.3} mouseLeaveDelay={.3}>
+              <div className="toolbar_bottom_rt_scale">缩放：{Math.round(scale * 100)}%</div>
+            </Tooltip>
+            <Upload showUploadList={false}
+              name="files"
+              beforeUpload={beforeUploadHandler}>
+              <Button type="dashed" shape="circle" icon={<FolderOpenOutlined />} />
+            </Upload>
           </Space>
         </div>
       )}

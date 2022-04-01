@@ -5,7 +5,6 @@ import {
   BrowserWindow,
   MenuItemConstructorOptions,
 } from 'electron';
-import { openFile } from './util';
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
   selector?: string;
@@ -20,6 +19,7 @@ export default class MenuBuilder {
   }
 
   buildMenu(): Menu {
+    // TODO: 发布时还原环境判断
     // if (
     //   process.env.NODE_ENV === 'development' ||
     //   process.env.DEBUG_PROD === 'true'
@@ -59,9 +59,7 @@ export default class MenuBuilder {
       submenu: [
         {
           label: 'Open',
-          click: () => {
-            openFile(this.mainWindow);
-          },
+          click: () => {},
         },
         {
           label: 'About ElectronReact',
@@ -207,9 +205,7 @@ export default class MenuBuilder {
           {
             label: '&Open',
             accelerator: 'Ctrl+O',
-            click: () => {
-              openFile(this.mainWindow);
-            },
+            click: () => {},
           },
           {
             label: '&Close',

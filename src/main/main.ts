@@ -9,12 +9,11 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import fs from 'fs';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, Menu } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
-import MenuBuilder from './menu';
-import { resolveHtmlPath } from './util';
+// import MenuBuilder from './menu';
+import { resolveHtmlPath, openAndSendFile } from './util';
 
 export default class AppUpdater {
   constructor() {
@@ -25,7 +24,7 @@ export default class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let filePaths: string[];
+let commandLine: string[];
 
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
@@ -34,14 +33,10 @@ ipcMain.on('ipc-example', async (event, arg) => {
 });
 ipcMain.on('file-opened-monitored', (event, arg) => {
   // 加载为二进制格式，用 ipc 通信发给 renderer
-  try {
-    const file = fs.readFileSync(filePaths[filePaths.length - 1]);
-    mainWindow?.webContents.send('file-opened', file);
-  } catch (e) {
-    mainWindow?.webContents.send('file-opened', e);
-  }
+  openAndSendFile(commandLine, mainWindow);
 });
 
+// TODO: 发布时还原环境判断
 // if (process.env.NODE_ENV === 'production') {
 const sourceMapSupport = require('source-map-support');
 
@@ -51,6 +46,7 @@ sourceMapSupport.install();
 const isDevelopment =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
 
+// TODO: 发布时还原环境判断
 // if (isDevelopment) {
 require('electron-debug')();
 // }
@@ -69,6 +65,7 @@ const installExtensions = async () => {
 };
 
 const createWindow = async () => {
+  // TODO: 发布时还原环境判断
   // if (isDevelopment) {
   await installExtensions();
   // }
@@ -85,8 +82,9 @@ const createWindow = async () => {
     show: false,
     width: 1024,
     height: 728,
+    minWidth: 1024,
+    minHeight: 728,
     icon: getAssetPath('icon.png'),
-    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -99,9 +97,9 @@ const createWindow = async () => {
       throw new Error('"mainWindow" is not defined');
     }
 
-    // 【windows】获取打开文件的路径链
+    // 【windows】获取打开文件的 commandLine
     if (process.platform === 'win32') {
-      filePaths = process.argv;
+      commandLine = process.argv;
     }
 
     if (process.env.START_MINIMIZED) {
@@ -115,8 +113,8 @@ const createWindow = async () => {
     mainWindow = null;
   });
 
-  const menuBuilder = new MenuBuilder(mainWindow);
-  menuBuilder.buildMenu();
+  // const menuBuilder = new MenuBuilder(mainWindow);
+  // menuBuilder.buildMenu();
 
   // Open urls in the user's browser
   mainWindow.webContents.setWindowOpenHandler((edata) => {
@@ -129,25 +127,46 @@ const createWindow = async () => {
   new AppUpdater();
 };
 
-/**
- * Add event listeners...
- */
-app.on('window-all-closed', () => {
-  // Respect the OSX convention of having the application in memory even
-  // after all windows have been closed
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+const gotTheLock = app.requestSingleInstanceLock();
 
-app
-  .whenReady()
-  .then(() => {
-    createWindow();
-    app.on('activate', () => {
-      // On macOS it's common to re-create a window in the app when the
-      // dock icon is clicked and there are no other windows open.
-      if (mainWindow === null) createWindow();
-    });
-  })
-  .catch(console.log);
+if (!gotTheLock) {
+  app.quit();
+} else {
+  /**
+   * Add event listeners...
+   */
+  // (event, commandLine, workingDirectory, additionalData) =>
+  app.on('second-instance', (event, _commandLine) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.focus();
+      // 【windows】获取打开文件的 commandLine
+      if (process.platform === 'win32') {
+        commandLine = _commandLine;
+      }
+      // 加载为二进制格式，用 ipc 通信发给 renderer
+      openAndSendFile(commandLine, mainWindow);
+    }
+  });
+  app.on('window-all-closed', () => {
+    // Respect the OSX convention of having the application in memory even
+    // after all windows have been closed
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+  app
+    .whenReady()
+    .then(() => {
+      createWindow();
+      Menu.setApplicationMenu(null);
+      app.on('activate', () => {
+        // On macOS it's common to re-create a window in the app when the
+        // dock icon is clicked and there are no other windows open.
+        if (mainWindow === null) createWindow();
+      });
+    })
+    .catch(console.log);
+}
