@@ -3,7 +3,7 @@
 /* eslint-disable jsx-a11y/control-has-associated-label */
 /* eslint-disable prettier/prettier */
 // 库
-import { useEffect, useState, useRef, FC, WheelEvent, useMemo } from 'react';
+import { useEffect, useState, useRef, FC, WheelEvent, useCallback, MutableRefObject, LegacyRef } from 'react';
 import { Card, Space, Upload, Button, Tooltip, Slider } from 'antd';
 import { FolderOpenOutlined, StepForwardOutlined, StepBackwardOutlined, PauseOutlined, CaretRightOutlined, CompressOutlined } from '@ant-design/icons';
 import SVGA from 'svgaplayerweb';
@@ -49,8 +49,19 @@ const Previewer: FC = () => {
     backgroundColor: _bgColor,
     border: `1px solid ${_borderColor || _bgColor}`,
   });
+  // 适配窗口大小
+  const suitWindow = () => {
+    const previewEl = document.querySelector('.preview');
+    const canvasWidth = canvasEl.current.width;
+    const canvasHeight = canvasEl.current.height;
+    if (canvasWidth > canvasHeight) {
+      setScale(Math.min(Math.max(0.125, previewEl.offsetWidth / canvasWidth), 4));
+    } else {
+      setScale(Math.min(Math.max(0.125, previewEl.offsetHeight / canvasHeight), 4));
+    }
+  };
   // 【事件处理】播放/暂停
-  const playOrPause = useMemo(() => () => {
+  const playOrPause = useCallback(() => {
     if (playing) {
       player.pauseAnimation();
       setPlaying(false);
@@ -60,7 +71,7 @@ const Previewer: FC = () => {
     }
   }, [playing, currFrame]);
   // 【事件处理】打开文件并播放
-  const beforeUploadHandler = useMemo(() => (file: File) => {
+  const beforeUploadHandler = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       loadAndPlay(e.target?.result);
@@ -81,7 +92,7 @@ const Previewer: FC = () => {
   };
   // 【事件处理】横向滚动
   enum ToNeighboringFrameType { next, prev };
-  const toNeighboringFrame = useMemo(() => (type: ToNeighboringFrameType) => {
+  const toNeighboringFrame = useCallback((type: ToNeighboringFrameType) => {
     const temp = type ? Math.max(currFrame - 1, 0) : Math.min(currFrame + 1, sprites.length - 1)
     setCurrFrame(temp);
     player.stepToFrame(temp);
@@ -93,7 +104,7 @@ const Previewer: FC = () => {
     framesEl.scrollLeft = Math.max(currFrameEl?.offsetLeft - document.documentElement.clientWidth / 2, 0);
   }, [currFrame, sprites]);
   // 【事件处理】全局 keyup
-  const globalKeyUpHandler = useMemo(() => (e: KeyboardEvent) => {
+  const globalKeyUpHandler = useCallback((e: KeyboardEvent) => {
     // console.log(e.code);
     switch (e.code) {
       case 'Space': playOrPause(); break;
@@ -101,7 +112,7 @@ const Previewer: FC = () => {
     };
   }, [playOrPause]);
   // 【事件处理】全局 keydown
-  const globalKeyDownHandler = useMemo(() => (e: KeyboardEvent) => {
+  const globalKeyDownHandler = useCallback((e: KeyboardEvent) => {
     // console.log(e.code);
     switch (e.code) {
       case 'ArrowLeft':
@@ -114,7 +125,7 @@ const Previewer: FC = () => {
     };
   }, [toNeighboringFrame, ToNeighboringFrameType.prev, ToNeighboringFrameType.next]);
   // 【事件处理】ipc 打开文件
-  const ipcFileOpenedHandler = useMemo(() => (bit: Uint8Array) => {
+  const ipcFileOpenedHandler = useCallback((bit: Uint8Array) => {
     if (bit instanceof Uint8Array) {
       const file = new File([bit], '');
       beforeUploadHandler(file);
@@ -222,7 +233,7 @@ const Previewer: FC = () => {
           </Space>
           <Space className="toolbar_bottom_rt">
             <Tooltip title="适应窗口大小" mouseEnterDelay={.3}>
-              <CompressOutlined className="toolbar_bottom_rt_suit" />
+              <CompressOutlined className="toolbar_bottom_rt_suit" onClick={suitWindow} />
             </Tooltip>
             <Tooltip title={(
               <div>
