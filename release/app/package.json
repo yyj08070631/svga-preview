@@ -1,11 +1,11 @@
 {
-  "name": "electron-react-boilerplate",
-  "version": "4.5.0",
-  "description": "A foundation for scalable desktop apps",
+  "name": "svga-player",
+  "version": "1.0.0",
+  "description": "SVGA Player",
   "main": "./dist/main/main.js",
   "author": {
-    "name": "Electron React Boilerplate Maintainers",
-    "email": "electronreactboilerplate@gmail.com",
+    "name": "yangyujian",
+    "email": "yangyujian@corp.netease.com",
     "url": "https://github.com/electron-react-boilerplate"
   },
   "scripts": {

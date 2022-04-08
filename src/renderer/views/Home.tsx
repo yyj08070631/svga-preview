@@ -3,7 +3,7 @@
 /* eslint-disable jsx-a11y/control-has-associated-label */
 /* eslint-disable prettier/prettier */
 // 库
-import { useEffect, useState, useRef, FC, WheelEvent, useCallback, MutableRefObject, LegacyRef } from 'react';
+import { useEffect, useState, useRef, FC, WheelEvent, useCallback } from 'react';
 import { Card, Space, Upload, Button, Tooltip, Slider } from 'antd';
 import { FolderOpenOutlined, StepForwardOutlined, StepBackwardOutlined, PauseOutlined, CaretRightOutlined, CompressOutlined } from '@ant-design/icons';
 import SVGA from 'svgaplayerweb';

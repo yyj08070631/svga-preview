@@ -127,46 +127,47 @@ const createWindow = async () => {
   new AppUpdater();
 };
 
-const gotTheLock = app.requestSingleInstanceLock();
+// 单实例
+// const gotTheLock = app.requestSingleInstanceLock();
 
-if (!gotTheLock) {
-  app.quit();
-} else {
-  /**
-   * Add event listeners...
-   */
-  // (event, commandLine, workingDirectory, additionalData) =>
-  app.on('second-instance', (event, _commandLine) => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.focus();
-      // 【windows】获取打开文件的 commandLine
-      if (process.platform === 'win32') {
-        commandLine = _commandLine;
-      }
-      // 加载为二进制格式，用 ipc 通信发给 renderer
-      openAndSendFile(commandLine, mainWindow);
-    }
-  });
-  app.on('window-all-closed', () => {
-    // Respect the OSX convention of having the application in memory even
-    // after all windows have been closed
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
-  app
-    .whenReady()
-    .then(() => {
-      createWindow();
-      Menu.setApplicationMenu(null);
-      app.on('activate', () => {
-        // On macOS it's common to re-create a window in the app when the
-        // dock icon is clicked and there are no other windows open.
-        if (mainWindow === null) createWindow();
-      });
-    })
-    .catch(console.log);
-}
+// if (!gotTheLock) {
+//   app.quit();
+// } else {
+//   app.on('second-instance', (event, _commandLine) => {
+//     if (mainWindow) {
+//       if (mainWindow.isMinimized()) {
+//         mainWindow.restore();
+//       }
+//       mainWindow.focus();
+//       // 【windows】获取打开文件的 commandLine
+//       if (process.platform === 'win32') {
+//         commandLine = _commandLine;
+//       }
+//       // 加载为二进制格式，用 ipc 通信发给 renderer
+//       openAndSendFile(commandLine, mainWindow);
+//     }
+//   });
+// }
+
+/**
+ * Add event listeners...
+ */
+app.on('window-all-closed', () => {
+  // Respect the OSX convention of having the application in memory even
+  // after all windows have been closed
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+app
+  .whenReady()
+  .then(() => {
+    createWindow();
+    Menu.setApplicationMenu(null);
+    app.on('activate', () => {
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
+      if (mainWindow === null) createWindow();
+    });
+  })
+  .catch(console.log);
